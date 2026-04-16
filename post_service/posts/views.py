@@ -5,9 +5,9 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import (
-    Post, Like, Comment
+    Post, Like, Comment, Media
 )
-from .serializers import PostSerializer, CommentSerializer
+from .serializers import PostSerializer, CommentSerializer, MediaSerializer
 
 
 # =========================
@@ -15,7 +15,26 @@ from .serializers import PostSerializer, CommentSerializer
 # =========================
 @api_view(['POST'])
 def create_post(request):
-    serializer = PostSerializer(data=request.data)
+    """
+    Create a new post with optional multiple media files (images/voices)
+    
+    Request format (JSON):
+    {
+        "user_id": "uuid",
+        "content": "text content",
+        "visibility": "public|private|friends",
+        "media": [
+            {
+                "url": "https://...",
+                "media_type": "image|voice",
+                "source": "upload|ai"
+            }
+        ]
+    }
+    """
+    data = request.data.dict() if hasattr(request.data, 'dict') else request.data
+    
+    serializer = PostSerializer(data=data)
 
     if serializer.is_valid():
         post = serializer.save()
