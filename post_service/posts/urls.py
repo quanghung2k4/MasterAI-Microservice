@@ -5,6 +5,7 @@ from .views import (
     toggle_like,
     get_comments,
     add_comment,
+    update_post,
     delete_post,
 )
 
@@ -14,5 +15,6 @@ urlpatterns = [
     path('<uuid:post_id>/like/', toggle_like, name='toggle_like'),
     path('<uuid:post_id>/comments/', get_comments, name='get_comments'),
     path('<uuid:post_id>/comment/', add_comment, name='add_comment'),
+    path('<uuid:post_id>/update/', update_post, name='update_post'),
     path('<uuid:post_id>/', delete_post, name='delete_post'),
 ]

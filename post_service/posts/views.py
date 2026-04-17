@@ -44,6 +44,62 @@ def create_post(request):
 
 
 # =========================
+# ✏️ UPDATE POST
+# =========================
+@api_view(['PUT', 'PATCH'])
+def update_post(request, post_id):
+    """
+    Update an existing post (content, visibility, media)
+    
+    Request format (JSON):
+    {
+        "content": "updated text",
+        "visibility": "public|private|friends",
+        "media": [
+            {
+                "url": "https://...",
+                "media_type": "image|voice",
+                "source": "upload|ai"
+            }
+        ]
+    }
+    """
+    try:
+        post = Post.objects.get(id=post_id)
+    except Post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=404)
+
+    data = request.data.dict() if hasattr(request.data, 'dict') else request.data
+    
+    # Update post fields
+    if 'content' in data:
+        post.content = data['content']
+    
+    if 'visibility' in data:
+        post.visibility = data['visibility']
+    
+    post.save()
+
+    # Handle media updates (delete old, add new)
+    if 'media' in data:
+        # Delete existing media
+        post.media.all().delete()
+        
+        # Create new media
+        media_data = data['media']
+        for index, m in enumerate(media_data):
+            Media.objects.create(
+                post=post,
+                url=m.get('url'),
+                media_type=m.get('media_type'),
+                source=m.get('source', 'upload'),
+                order=index
+            )
+
+    return Response(PostSerializer(post).data, status=200)
+
+
+# =========================
 # 📄 GET FEED
 # =========================
 @api_view(['GET'])
