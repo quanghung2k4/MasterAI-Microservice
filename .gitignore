@@ -42,5 +42,12 @@ Thumbs.db
 .env
 .env.*
 
+# Ignore cache trong migrations
+**/migrations/__pycache__/
+**/migrations/*.pyc
+
+# Nhưng vẫn giữ file migration
+!**/migrations/*.py
+
 # Node (if any frontend tooling appears later)
 node_modules/
