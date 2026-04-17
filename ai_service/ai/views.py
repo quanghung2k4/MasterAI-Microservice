@@ -44,18 +44,19 @@ def generate_image_api(request):
     if not prompt:
         return JsonResponse({'error': 'Thiếu tham số bắt buộc: prompt'}, status=400)
     gen_type = 'avatar' if uploaded_image else 'image'
-    AIGeneration.objects.create(
+    new_gen = AIGeneration.objects.create(
         user_id=user_id, # Đã thêm
         generation_type=gen_type,
         prompt="prompt", 
-        media_url="https://res.cloudinary.com/dldcklb9x/image/upload/v1776394994/image/kl0tuwhym91p5qiglqdd.png",
+        media_url="https://res.cloudinary.com/dldcklb9x/image/upload/v1776360281/image/dz2dfsy1arhy7ny45ccf.png",
         aspect_ratio=aspect_ratio,
         resolution_config=resolution
     )
     return JsonResponse({
+                    'generation_id':new_gen.id,
                     'success': True,
                     'message': 'Sinh ảnh thành công',
-                    'media_url': "https://res.cloudinary.com/dldcklb9x/image/upload/v1776394994/image/kl0tuwhym91p5qiglqdd.png",
+                    'media_url': new_gen.media_url,
                     'aspect_ratio': aspect_ratio,
                     'resolution_config': resolution
                 })
@@ -123,7 +124,7 @@ def generate_image_api(request):
                     folder="image", # Phân loại thư mục trên Cloudinary cho gọn
                     resource_type="image"          # Định dạng tài nguyên
                 )
-                AIGeneration.objects.create(
+                new_gen = AIGeneration.objects.create(
                     user_id=user_id, 
                     generation_type=gen_type,
                     prompt=final_prompt, 
@@ -132,6 +133,7 @@ def generate_image_api(request):
                     resolution_config=resolution
                 )
                 return JsonResponse({
+                    'generation_id':new_gen.id,
                     'success': True,
                     'message': 'Sinh ảnh thành công',
                     'media_url': upload_result.get("secure_url"),
@@ -302,9 +304,9 @@ def add_asset_api(request):
             return JsonResponse({"success": False, "error": "Không tìm thấy bản ghi gốc trong lịch sử"}, status=404)
 
         # 3. Kiểm tra xem đã tồn tại trong Asset chưa (tránh lưu trùng)
-        exists = UserAsset.objects.filter(user_id=user_id, media_url=source_gen.id).exists()
+        exists = UserAsset.objects.filter(user_id=user_id, generation_id=source_gen.id).exists()
         if exists:
-            return JsonResponse({"success": False, "message": "Đã tồn tại trong tài nguyên"})
+            return JsonResponse({"success": True, "message": "Đã tồn tại trong tài nguyên"})
 
         # 4. Tạo bản ghi mới trong UserAsset
         new_asset = UserAsset.objects.create(
@@ -317,7 +319,7 @@ def add_asset_api(request):
 
         return JsonResponse({
             "success": True, 
-            "message": "Đã thêm vào My Assets thành công",
+            "message": "Đã thêm vào tài nguyên của bạn",
             "asset_id": str(new_asset.id)
         })
 
