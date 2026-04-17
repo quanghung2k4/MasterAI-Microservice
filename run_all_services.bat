@@ -12,8 +12,8 @@ REM ============================================================
 set "ROOT=%~dp0"
 
 REM --- Default venv paths (edit if you want) ---
-set "DEFAULT_VENV_ACTIVATE=D:\DjangoProject\Test-django\myenv\Scripts\activate.bat"
-set "DEFAULT_VENV_PYTHON=D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
+set "DEFAULT_VENV_ACTIVATE=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\activate.bat"
+set "DEFAULT_VENV_PYTHON=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
 
 REM --- Service dirs ---
 set "GATEWAY_DIR=%ROOT%api_gateway"
@@ -84,7 +84,7 @@ if not exist "%VENV_PYTHON%" (
   echo         %VENV_PYTHON%
   echo.
   echo Provide python.exe directly, e.g.:
-  echo   run_all_services.bat "D:\path\to\venv\Scripts\python.exe"
+  echo   run_all_services.bat "C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
   exit /b 1
 )
 

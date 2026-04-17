@@ -5,9 +5,9 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import (
-    Post, Like, Comment
+    Post, Like, Comment, Media
 )
-from .serializers import PostSerializer, CommentSerializer
+from .serializers import PostSerializer, CommentSerializer, MediaSerializer
 
 
 # =========================
@@ -15,13 +15,88 @@ from .serializers import PostSerializer, CommentSerializer
 # =========================
 @api_view(['POST'])
 def create_post(request):
-    serializer = PostSerializer(data=request.data)
+    """
+    Create a new post with optional multiple media files (images/voices)
+    
+    Request format (JSON):
+    {
+        "user_id": "uuid",
+        "content": "text content",
+        "visibility": "public|private|friends",
+        "media": [
+            {
+                "url": "https://...",
+                "media_type": "image|voice",
+                "source": "upload|ai"
+            }
+        ]
+    }
+    """
+    data = request.data.dict() if hasattr(request.data, 'dict') else request.data
+    
+    serializer = PostSerializer(data=data)
 
     if serializer.is_valid():
         post = serializer.save()
         return Response(PostSerializer(post).data, status=201)
 
     return Response(serializer.errors, status=400)
+
+
+# =========================
+# ✏️ UPDATE POST
+# =========================
+@api_view(['PUT', 'PATCH'])
+def update_post(request, post_id):
+    """
+    Update an existing post (content, visibility, media)
+    
+    Request format (JSON):
+    {
+        "content": "updated text",
+        "visibility": "public|private|friends",
+        "media": [
+            {
+                "url": "https://...",
+                "media_type": "image|voice",
+                "source": "upload|ai"
+            }
+        ]
+    }
+    """
+    try:
+        post = Post.objects.get(id=post_id)
+    except Post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=404)
+
+    data = request.data.dict() if hasattr(request.data, 'dict') else request.data
+    
+    # Update post fields
+    if 'content' in data:
+        post.content = data['content']
+    
+    if 'visibility' in data:
+        post.visibility = data['visibility']
+    
+    post.save()
+
+    # Handle media updates (delete old, add new)
+    if 'media' in data:
+        # Delete existing media
+        post.media.all().delete()
+        
+        # Create new media
+        media_data = data['media']
+        for index, m in enumerate(media_data):
+            Media.objects.create(
+                post=post,
+                url=m.get('url'),
+                media_type=m.get('media_type'),
+                source=m.get('source', 'upload'),
+                order=index
+            )
+
+    return Response(PostSerializer(post).data, status=200)
 
 
 # =========================

@@ -59,9 +59,9 @@ class PostSerializer(serializers.ModelSerializer):
         post = Post.objects.create(**validated_data)
 
         for index, m in enumerate(media_data):
+            m['order'] = index  # Override order value
             Media.objects.create(
                 post=post,
-                order=index,
                 **m
             )
 
