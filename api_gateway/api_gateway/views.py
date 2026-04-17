@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 api = "localhost"
 USER_SERVICE_URL = f"http://{api}:3001"
 POST_SERVICE_URL = f"http://{api}:3002"
+AI_SERVICE_URL = f"http://{api}:3003"
 
 
 def proxy_request(request, target_url):
@@ -42,4 +43,10 @@ def user_service(request, path=""):
 def post_service(request, path=""):
     path = (path or "").lstrip("/")
     target_url = f"{POST_SERVICE_URL}/api/posts/" + path
+    return proxy_request(request, target_url)
+
+@csrf_exempt
+def ai_service(request, path=""):
+    path = (path or "").lstrip("/")
+    target_url = f"{AI_SERVICE_URL}/api/ai/" + path
     return proxy_request(request, target_url)
