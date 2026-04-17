@@ -19,15 +19,18 @@ REM --- Service dirs ---
 set "GATEWAY_DIR=%ROOT%api_gateway"
 set "USER_DIR=%ROOT%user_service"
 set "POST_DIR=%ROOT%post_service"
+set "AI_DIR=%ROOT%ai_service"
 
 REM --- Hosts/ports ---
 set "GATEWAY_HOST=0.0.0.0"
 set "USER_HOST=0.0.0.0"
 set "POST_HOST=0.0.0.0"
+set "AI_HOST=0.0.0.0"
 
 set "GATEWAY_PORT=8000"
 set "USER_PORT=3001"
 set "POST_PORT=3002"
+set "AI_PORT=3003"
 
 REM --- Resolve venv argument ---
 set "ARG=%~1"
@@ -69,8 +72,8 @@ if not exist "%USER_DIR%\manage.py" (
   echo [ERROR] Not found: %USER_DIR%\manage.py
   exit /b 1
 )
-if not exist "%POST_DIR%\manage.py" (
-  echo [ERROR] Not found: %POST_DIR%\manage.py
+if not exist "%AI_DIR%\manage.py" (
+  echo [ERROR] Not found: %AI_DIR%\manage.py
   exit /b 1
 )
 
@@ -96,12 +99,14 @@ echo Ports:
 echo   API Gateway : %GATEWAY_HOST%:%GATEWAY_PORT%
 echo   User Service: %USER_HOST%:%USER_PORT%
 echo   Post Service: %POST_HOST%:%POST_PORT%
+echo   Ai Service: %AI_HOST%:%AI_PORT%
 echo.
 
 REM --- Start each service in its own window (PowerShell is robust under Windows Terminal default shell) ---
 start "API Gateway" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%GATEWAY_DIR%'; & '%VENV_PYTHON%' manage.py runserver %GATEWAY_HOST%:%GATEWAY_PORT%"
 start "User Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%USER_DIR%'; & '%VENV_PYTHON%' manage.py runserver %USER_HOST%:%USER_PORT%"
 start "Post Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%POST_DIR%'; & '%VENV_PYTHON%' manage.py runserver %POST_HOST%:%POST_PORT%"
+start "AI Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%AI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %AI_HOST%:%AI_PORT%"
 
 echo Done. Close the opened PowerShell windows to stop services.
 echo.
