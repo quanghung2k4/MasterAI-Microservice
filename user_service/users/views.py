@@ -5,11 +5,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import make_password, check_password
-from .models import User
+from .models import User,Follow
+import requests
 from .serializers import UserSerializer
 
+# Giả sử POST_SERVICE đang chạy ở cổng 3002
+POST_SERVICE_URL = "http://localhost:3002/api/posts/count/"
 
-# ✅ GET ALL USERS
+# GET ALL USERS
 @api_view(['GET'])
 def get_all_users(request):
     users = User.objects.all().order_by('-created_at')
@@ -17,16 +20,51 @@ def get_all_users(request):
     return Response(serializer.data)
 
 
-# ✅ GET USER BY ID
+# GET USER BY ID
 @api_view(['GET'])
 def get_user_by_id(request, user_id):
     try:
-        user = User.objects.get(id=user_id)
+        target_user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = UserSerializer(user)
-    return Response(serializer.data)
+    # 1. Xử lý trạng thái is_followed
+    current_user_id = request.query_params.get('current_user_id')
+    is_followed = False
+    
+    if current_user_id:
+        is_followed = Follow.objects.filter(
+            follower_id=current_user_id, 
+            following_id=user_id
+        ).exists()
+
+    # 2. Đếm số lượng follower và following
+    follower_count = Follow.objects.filter(following_id=user_id).count()
+    following_count = Follow.objects.filter(follower_id=user_id).count()
+
+    # 3. Giao tiếp với Post Service để lấy post_count
+    post_count = 0
+    try:
+        response = requests.get(f"{POST_SERVICE_URL}{user_id}/", timeout=3)
+        if response.status_code == 200:
+            post_count = response.json().get("post_count", 0)
+    except requests.exceptions.RequestException as e:
+        # Xử lý lỗi nếu Post Service bị chết (fallback về 0)
+        print(f"Lỗi gọi Post Service: {e}")
+
+    # 4. Trả về format chuẩn
+    data = {
+        "id": str(target_user.id),
+        "username": target_user.username,
+        "email": target_user.email,
+        "avatar_url": target_user.avatar_url,
+        "is_followed": is_followed,
+        "post_count": post_count,
+        "follower_count": follower_count,
+        "following_count": following_count
+    }
+
+    return Response(data, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
