@@ -98,6 +98,14 @@ def update_post(request, post_id):
 
     return Response(PostSerializer(post).data, status=200)
 
+# Đếm số lượng bài post của user
+@api_view(['GET'])
+def get_user_post_count(request, user_id):
+    try:
+        count = Post.objects.filter(user_id=user_id, is_deleted=False).count()
+        return Response({"post_count": count}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # =========================
 # 📄 GET FEED

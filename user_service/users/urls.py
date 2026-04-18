@@ -6,7 +6,7 @@ from .views import (
     get_user_by_id,
     register,
     login,
-    logout
+    logout,
 )
 
 urlpatterns = [
@@ -18,4 +18,5 @@ urlpatterns = [
     # 👤 USERS
     path('', get_all_users),
     path('<uuid:user_id>/', get_user_by_id),
+
 ]

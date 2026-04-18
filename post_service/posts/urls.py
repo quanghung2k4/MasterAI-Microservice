@@ -7,6 +7,7 @@ from .views import (
     add_comment,
     update_post,
     delete_post,
+    get_user_post_count
 )
 
 urlpatterns = [
@@ -17,4 +18,6 @@ urlpatterns = [
     path('<uuid:post_id>/comment/', add_comment, name='add_comment'),
     path('<uuid:post_id>/update/', update_post, name='update_post'),
     path('<uuid:post_id>/', delete_post, name='delete_post'),
+    path('count/<uuid:user_id>/', get_user_post_count, name='post-count'),
+
 ]
