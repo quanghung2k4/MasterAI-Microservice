@@ -12,6 +12,9 @@ from .serializers import UserSerializer
 # Giả sử POST_SERVICE đang chạy ở cổng 3002
 POST_SERVICE_URL = "http://localhost:3002/api/posts/count/"
 
+# Notification Service URL
+NOTIFICATION_SERVICE_URL = "http://localhost:3004/api/notifications"
+
 # GET ALL USERS
 @api_view(['GET'])
 def get_all_users(request):
@@ -141,3 +144,96 @@ def logout(request):
     return Response({
         "message": "Logout successful"
     })
+
+
+# =========================
+# 👥 FOLLOW / UNFOLLOW
+# =========================
+@csrf_exempt
+@api_view(['POST'])
+def follow_user(request):
+    """
+    Follow a user
+    
+    Request format (JSON):
+    {
+        "follower_id": "uuid",
+        "following_id": "uuid"
+    }
+    """
+    follower_id = request.data.get('follower_id')
+    following_id = request.data.get('following_id')
+    
+    # Validate
+    if not follower_id or not following_id:
+        return Response({"error": "follower_id and following_id are required"}, status=400)
+    
+    if follower_id == following_id:
+        return Response({"error": "Cannot follow yourself"}, status=400)
+    
+    try:
+        following_user = User.objects.get(id=following_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+    
+    # Create or get follow relationship
+    follow, created = Follow.objects.get_or_create(
+        follower_id=follower_id,
+        following_id=following_id
+    )
+    
+    if not created:
+        return Response({"error": "Already following this user"}, status=400)
+    
+    # 🔥 Send notification to followed user
+    try:
+        notification_data = {
+            "recipient_id": str(following_id),
+            "sender_id": str(follower_id),
+            "type": "follow",
+            "title": "Someone followed you",
+            "message": "A user started following you",
+            "data": {
+                "follower_id": str(follower_id),
+                "action": "follow"
+            }
+        }
+        requests.post(
+            f"{NOTIFICATION_SERVICE_URL}/create/",
+            json=notification_data,
+            timeout=5
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"Notification error: {e}")
+    
+    return Response({"message": "Following"}, status=201)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def unfollow_user(request):
+    """
+    Unfollow a user
+    
+    Request format (JSON):
+    {
+        "follower_id": "uuid",
+        "following_id": "uuid"
+    }
+    """
+    follower_id = request.data.get('follower_id')
+    following_id = request.data.get('following_id')
+    
+    # Validate
+    if not follower_id or not following_id:
+        return Response({"error": "follower_id and following_id are required"}, status=400)
+    
+    try:
+        follow = Follow.objects.get(
+            follower_id=follower_id,
+            following_id=following_id
+        )
+        follow.delete()
+        return Response({"message": "Unfollowed"}, status=200)
+    except Follow.DoesNotExist:
+        return Response({"error": "Not following this user"}, status=404)

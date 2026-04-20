@@ -7,6 +7,8 @@ from .views import (
     register,
     login,
     logout,
+    follow_user,
+    unfollow_user,
 )
 
 urlpatterns = [
@@ -14,6 +16,10 @@ urlpatterns = [
     path('register/', register),
     path('login/', login),
     path('logout/', logout),
+
+    # 👥 FOLLOW/UNFOLLOW
+    path('follow/', follow_user),
+    path('unfollow/', unfollow_user),
 
     # 👤 USERS
     path('', get_all_users),

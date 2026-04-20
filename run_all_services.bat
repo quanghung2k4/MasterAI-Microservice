@@ -12,25 +12,29 @@ REM ============================================================
 set "ROOT=%~dp0"
 
 REM --- Default venv paths (edit if you want) ---
-set "DEFAULT_VENV_ACTIVATE=D:\DjangoProject\Test-django\myenv\Scripts\activate.bat"
-set "DEFAULT_VENV_PYTHON=D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
+set "DEFAULT_VENV_ACTIVATE=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\activate.bat"
+set "DEFAULT_VENV_PYTHON=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
 
 REM --- Service dirs ---
 set "GATEWAY_DIR=%ROOT%api_gateway"
 set "USER_DIR=%ROOT%user_service"
 set "POST_DIR=%ROOT%post_service"
 set "AI_DIR=%ROOT%ai_service"
+set "NOTI_DIR=%ROOT%notification_service"
 
 REM --- Hosts/ports ---
 set "GATEWAY_HOST=0.0.0.0"
 set "USER_HOST=0.0.0.0"
 set "POST_HOST=0.0.0.0"
 set "AI_HOST=0.0.0.0"
+set "NOTI_HOST=0.0.0.0"
+
 
 set "GATEWAY_PORT=8000"
 set "USER_PORT=3001"
 set "POST_PORT=3002"
 set "AI_PORT=3003"
+set "NOTI_PORT=3004"
 
 REM --- Resolve venv argument ---
 set "ARG=%~1"
@@ -76,6 +80,10 @@ if not exist "%AI_DIR%\manage.py" (
   echo [ERROR] Not found: %AI_DIR%\manage.py
   exit /b 1
 )
+if not exist "%NOTI_DIR%\manage.py" (
+  echo [ERROR] Not found: %NOTI_DIR%\manage.py
+  exit /b 1
+)
 
 echo.
 echo Starting services...
@@ -84,7 +92,7 @@ if not exist "%VENV_PYTHON%" (
   echo         %VENV_PYTHON%
   echo.
   echo Provide python.exe directly, e.g.:
-  echo   run_all_services.bat "D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
+  echo   run_all_services.bat "C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
   exit /b 1
 )
 
@@ -100,6 +108,7 @@ echo   API Gateway : %GATEWAY_HOST%:%GATEWAY_PORT%
 echo   User Service: %USER_HOST%:%USER_PORT%
 echo   Post Service: %POST_HOST%:%POST_PORT%
 echo   Ai Service: %AI_HOST%:%AI_PORT%
+echo   Notification Service: %NOTI_HOST%:%NOTI_PORT%
 echo.
 
 REM --- Start each service in its own window (PowerShell is robust under Windows Terminal default shell) ---
@@ -107,6 +116,7 @@ start "API Gateway" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Loc
 start "User Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%USER_DIR%'; & '%VENV_PYTHON%' manage.py runserver %USER_HOST%:%USER_PORT%"
 start "Post Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%POST_DIR%'; & '%VENV_PYTHON%' manage.py runserver %POST_HOST%:%POST_PORT%"
 start "AI Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%AI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %AI_HOST%:%AI_PORT%"
+start "Notification Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%NOTI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %NOTI_HOST%:%NOTI_PORT%"
 
 echo Done. Close the opened PowerShell windows to stop services.
 echo.
