@@ -8,24 +8,28 @@ REM ============================================================
 set "ROOT=%~dp0"
 
 REM --- Default venv paths (edit if you want) ---
-set "DEFAULT_VENV_ACTIVATE=D:\DjangoProject\Test-django\myenv\Scripts\activate.bat"
-set "DEFAULT_VENV_PYTHON=D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
+set "DEFAULT_VENV_ACTIVATE=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\activate.bat"
+set "DEFAULT_VENV_PYTHON=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
 
 REM --- Service dirs ---
 set "NGINX_DIR=D:\DjangoProject\MasterAI-Microservice\nginx"
 set "USER_DIR=%ROOT%user_service"
 set "POST_DIR=%ROOT%post_service"
 set "AI_DIR=%ROOT%ai_service"
+set "NOTI_DIR=%ROOT%notification_service"
 set "MESSAGE_DIR=%ROOT%message_service"
 
 REM --- Hosts/ports ---
 set "USER_HOST=0.0.0.0"
 set "POST_HOST=0.0.0.0"
 set "AI_HOST=0.0.0.0"
+set "NOTI_HOST=0.0.0.0"
+
 
 set "USER_PORT=3001"
 set "POST_PORT=3002"
 set "AI_PORT=3003"
+set "NOTI_PORT=3004"
 set "MESSAGE_PORT=3030"
 
 REM --- Resolve venv argument ---
@@ -78,6 +82,10 @@ if not exist "%AI_DIR%\manage.py" (
   echo [ERROR] Not found: %AI_DIR%\manage.py
   exit /b 1
 )
+if not exist "%NOTI_DIR%\manage.py" (
+  echo [ERROR] Not found: %NOTI_DIR%\manage.py
+  exit /b 1
+)
 
 echo.
 echo Starting services...
@@ -86,7 +94,7 @@ if not exist "%VENV_PYTHON%" (
   echo         %VENV_PYTHON%
   echo.
   echo Provide python.exe directly, e.g.:
-  echo   run_all_services.bat "D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
+  echo   run_all_services.bat "C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
   exit /b 1
 )
 
@@ -115,6 +123,7 @@ REM --- Start each service in its own window ---
 start "User Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%USER_DIR%'; & '%VENV_PYTHON%' manage.py runserver %USER_HOST%:%USER_PORT%"
 start "Post Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%POST_DIR%'; & '%VENV_PYTHON%' manage.py runserver %POST_HOST%:%POST_PORT%"
 start "AI Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%AI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %AI_HOST%:%AI_PORT%"
+start "Notification Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%NOTI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %NOTI_HOST%:%NOTI_PORT%"
 start "Message Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%MESSAGE_DIR%'; & '%VENV_PYTHON%' manage.py runserver 0.0.0.0:%MESSAGE_PORT%"
 
 echo Done. 

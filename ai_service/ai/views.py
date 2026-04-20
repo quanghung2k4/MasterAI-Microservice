@@ -12,6 +12,7 @@ from django.core.files.base import ContentFile
 import uuid
 from django.conf import settings
 from django.views.decorators.http import require_POST
+import requests
 
 
 # Import thư viện Cloudinary
@@ -28,6 +29,9 @@ cloudinary.config(
 
 # Tốt nhất bạn nên lưu API Key trong biến môi trường (Environment Variables)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+
+# Notification Service URL
+NOTIFICATION_SERVICE_URL = "http://localhost:3004/api/notifications"
 
 @csrf_exempt
 def generate_image_api(request):
@@ -124,19 +128,47 @@ def generate_image_api(request):
                     folder="image", # Phân loại thư mục trên Cloudinary cho gọn
                     resource_type="image"          # Định dạng tài nguyên
                 )
+                media_url = upload_result.get("secure_url")
                 new_gen = AIGeneration.objects.create(
                     user_id=user_id, 
                     generation_type=gen_type,
                     prompt=final_prompt, 
-                    media_url=secure_url,
+                    media_url=media_url,
                     aspect_ratio=aspect_ratio,
                     resolution_config=resolution
                 )
+                
+                # 🔥 Send notification when image/avatar is created successfully
+                try:
+                    notification_data = {
+                        "recipient_id": str(user_id),
+                        "sender_id": str(user_id),
+                        "type": "ai",
+                        "title": f"Your {gen_type} has been created",
+                        "message": f"AI generated {gen_type} from prompt: '{final_prompt[:60]}...'",
+                        "data": {
+                            "generation_id": str(new_gen.id),
+                            "generation_type": gen_type,
+                            "media_url": media_url,
+                            "action": "ai_generation",
+                            "prompt": final_prompt[:100],
+                            "aspect_ratio": aspect_ratio,
+                            "resolution": resolution
+                        }
+                    }
+                    requests.post(
+                        f"{NOTIFICATION_SERVICE_URL}/create/",
+                        json=notification_data,
+                        timeout=5
+                    )
+                except requests.exceptions.RequestException as e:
+                    print(f"Notification error: {e}")
+                
                 return JsonResponse({
                     'generation_id':new_gen.id,
                     'success': True,
                     'message': 'Sinh ảnh thành công',
-                    'media_url': upload_result.get("secure_url"),
+                    'media_url': media_url,
                     'aspect_ratio': aspect_ratio,
                     'resolution_config': resolution
                 })

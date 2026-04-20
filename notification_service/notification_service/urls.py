@@ -1,5 +1,5 @@
 """
-URL configuration for api_gateway project.
+URL configuration for notification_service project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
@@ -14,13 +14,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, re_path
-from .views import user_service, post_service, ai_service, notification_service
+from django.urls import path, include
 
 urlpatterns = [
-    re_path(r'^api/users(?:/(?P<path>.*))?$', user_service),
-    re_path(r'^api/posts(?:/(?P<path>.*))?$', post_service),
-    re_path(r'^api/ai(?:/(?P<path>.*))?$', ai_service),
-    re_path(r'^api/notifications(?:/(?P<path>.*))?$', notification_service),
+    path('api/notifications/', include('notification.urls')),
 ]

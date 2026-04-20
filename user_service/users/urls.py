@@ -7,6 +7,8 @@ from .views import (
     register,
     login,
     logout,
+    follow_user,
+    unfollow_user,
     toggle_follow
 )
 
@@ -16,6 +18,11 @@ urlpatterns = [
     path('login/', login),
     path('logout/', logout),
 
+    # 👥 FOLLOW/UNFOLLOW
+    path('follow/', follow_user),
+    path('unfollow/', unfollow_user),
+
+    # 👤 USERS
     #  USERS
     path('', get_all_users),
     path('<uuid:user_id>/', get_user_by_id),
