@@ -2,11 +2,7 @@
 setlocal EnableExtensions
 
 REM ============================================================
-REM Run all Django services (API Gateway + microservices)
-REM Usage:
-REM   run_all_services.bat
-REM   run_all_services.bat "D:\path\to\venv\Scripts\activate.bat"
-REM   run_all_services.bat "D:\path\to\venv\Scripts\python.exe"
+REM Run all services (Nginx Gateway + Django microservices)
 REM ============================================================
 
 set "ROOT=%~dp0"
@@ -16,25 +12,25 @@ set "DEFAULT_VENV_ACTIVATE=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Sc
 set "DEFAULT_VENV_PYTHON=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
 
 REM --- Service dirs ---
-set "GATEWAY_DIR=%ROOT%api_gateway"
+set "NGINX_DIR=D:\DjangoProject\MasterAI-Microservice\nginx"
 set "USER_DIR=%ROOT%user_service"
 set "POST_DIR=%ROOT%post_service"
 set "AI_DIR=%ROOT%ai_service"
 set "NOTI_DIR=%ROOT%notification_service"
+set "MESSAGE_DIR=%ROOT%message_service"
 
 REM --- Hosts/ports ---
-set "GATEWAY_HOST=0.0.0.0"
 set "USER_HOST=0.0.0.0"
 set "POST_HOST=0.0.0.0"
 set "AI_HOST=0.0.0.0"
 set "NOTI_HOST=0.0.0.0"
 
 
-set "GATEWAY_PORT=8000"
 set "USER_PORT=3001"
 set "POST_PORT=3002"
 set "AI_PORT=3003"
 set "NOTI_PORT=3004"
+set "MESSAGE_PORT=3030"
 
 REM --- Resolve venv argument ---
 set "ARG=%~1"
@@ -68,12 +64,18 @@ if defined VENV_ACTIVATE (
 )
 
 REM --- Basic checks ---
-if not exist "%GATEWAY_DIR%\manage.py" (
-  echo [ERROR] Not found: %GATEWAY_DIR%\manage.py
+REM 1. Kiểm tra xem Nginx có tồn tại không
+if not exist "%NGINX_DIR%\nginx.exe" (
+  echo [ERROR] Nginx không tim thay tai: %NGINX_DIR%\nginx.exe
   exit /b 1
 )
+REM 2. Kiểm tra các microservices
 if not exist "%USER_DIR%\manage.py" (
   echo [ERROR] Not found: %USER_DIR%\manage.py
+  exit /b 1
+)
+if not exist "%POST_DIR%\manage.py" (
+  echo [ERROR] Not found: %POST_DIR%\manage.py
   exit /b 1
 )
 if not exist "%AI_DIR%\manage.py" (
@@ -104,20 +106,29 @@ if defined VENV_ACTIVATE (
 
 echo.
 echo Ports:
-echo   API Gateway : %GATEWAY_HOST%:%GATEWAY_PORT%
-echo   User Service: %USER_HOST%:%USER_PORT%
-echo   Post Service: %POST_HOST%:%POST_PORT%
-echo   Ai Service: %AI_HOST%:%AI_PORT%
-echo   Notification Service: %NOTI_HOST%:%NOTI_PORT%
+echo   Nginx Gateway : Port 8000
+echo   User Service  : %USER_HOST%:%USER_PORT%
+echo   Post Service  : %POST_HOST%:%POST_PORT%
+echo   Ai Service    : %AI_HOST%:%AI_PORT%
 echo.
 
-REM --- Start each service in its own window (PowerShell is robust under Windows Terminal default shell) ---
-start "API Gateway" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%GATEWAY_DIR%'; & '%VENV_PYTHON%' manage.py runserver %GATEWAY_HOST%:%GATEWAY_PORT%"
+echo Starting Services with NGINX...
+echo.
+
+REM --- Start Nginx Gateway ---
+echo Starting Nginx on port 8000...
+start "Nginx Gateway" /d "%NGINX_DIR%" nginx.exe
+
+REM --- Start each service in its own window ---
 start "User Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%USER_DIR%'; & '%VENV_PYTHON%' manage.py runserver %USER_HOST%:%USER_PORT%"
 start "Post Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%POST_DIR%'; & '%VENV_PYTHON%' manage.py runserver %POST_HOST%:%POST_PORT%"
 start "AI Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%AI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %AI_HOST%:%AI_PORT%"
 start "Notification Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%NOTI_DIR%'; & '%VENV_PYTHON%' manage.py runserver %NOTI_HOST%:%NOTI_PORT%"
+start "Message Service" powershell -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '%MESSAGE_DIR%'; & '%VENV_PYTHON%' manage.py runserver 0.0.0.0:%MESSAGE_PORT%"
 
-echo Done. Close the opened PowerShell windows to stop services.
+echo Done. 
+echo [WARNING] Closing this window does NOT stop Nginx.
+echo To stop Nginx, you must run: cd /d "%NGINX_DIR%" ^& nginx -s quit
 echo.
+pause
 endlocal

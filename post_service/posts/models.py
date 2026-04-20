@@ -81,10 +81,10 @@ class Media(models.Model):
         default='upload'
     )
 
-    # 🔥 metadata cho AI (prompt, model, duration...)
+    #metadata cho AI (prompt, model, duration...)
     ai_metadata = models.JSONField(null=True, blank=True)
 
-    # 🔥 thứ tự hiển thị (giống Instagram carousel)
+    #thứ tự hiển thị (giống Instagram carousel)
     order = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)

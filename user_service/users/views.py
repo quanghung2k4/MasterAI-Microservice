@@ -15,6 +15,40 @@ POST_SERVICE_URL = "http://localhost:3002/api/posts/count/"
 # Notification Service URL
 NOTIFICATION_SERVICE_URL = "http://localhost:3004/api/notifications"
 
+@api_view(['POST'])
+def toggle_follow(request, user_id):
+    """
+    API để Follow hoặc Unfollow một người dùng.
+    - user_id (trên URL): ID của người được theo dõi (following_id)
+    - follower_id (trong Body): ID của người đang thao tác
+    """
+    follower_id = request.data.get('follower_id')
+
+    if not follower_id:
+        return Response({'error': 'Thiếu follower_id trong body'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Chuyển đổi về string để so sánh an toàn, tránh việc user tự follow chính mình
+    if str(follower_id) == str(user_id):
+        return Response({'error': 'Bạn không thể tự theo dõi chính mình'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Kiểm tra xem record follow này đã tồn tại chưa
+    follow_record = Follow.objects.filter(follower_id=follower_id, following_id=user_id).first()
+
+    if follow_record:
+        # Nếu đã follow rồi -> Xoá record (Unfollow)
+        follow_record.delete()
+        return Response({
+            'message': 'Đã bỏ theo dõi',
+            'is_following': False
+        }, status=status.HTTP_200_OK)
+    else:
+        # Nếu chưa follow -> Tạo record mới (Follow)
+        Follow.objects.create(follower_id=follower_id, following_id=user_id)
+        return Response({
+            'message': 'Đã theo dõi thành công',
+            'is_following': True
+        }, status=status.HTTP_201_CREATED)
+
 # GET ALL USERS
 @api_view(['GET'])
 def get_all_users(request):
@@ -138,6 +172,10 @@ def login(request):
             "avatar_url": user.avatar_url
         }
     })
+
+
+
+
 @csrf_exempt
 @api_view(['POST'])
 def logout(request):
