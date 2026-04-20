@@ -3,6 +3,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 
 from .models import (
     Post, Like, Comment, Media
@@ -198,3 +199,27 @@ def delete_post(request, post_id):
         return Response({'message': 'deleted'})
     except Post.DoesNotExist:
         return Response({'error': 'Post not found'}, status=404)
+
+@api_view(['GET'])
+def get_user_posts(request, user_id):
+    """
+    Lấy danh sách bài viết của một user cụ thể, có phân trang.
+    """
+    # 1. Truy vấn dữ liệu (Tối ưu với prefetch_related)
+    posts = Post.objects.prefetch_related('media').filter(
+        user_id=user_id,
+        is_deleted=False
+    ).order_by('-created_at')
+
+    # 2. Khởi tạo bộ phân trang
+    paginator = PageNumberPagination()
+    paginator.page_size = 10  # Số lượng bài viết trên 1 trang (có thể tùy chỉnh)
+
+    # 3. Áp dụng phân trang vào queryset
+    paginated_posts = paginator.paginate_queryset(posts, request)
+
+    # 4. Serialize dữ liệu
+    serializer = PostSerializer(paginated_posts, many=True)
+
+    # 5. Trả về response kèm theo thông tin phân trang (next, previous, count)
+    return paginator.get_paginated_response(serializer.data)
