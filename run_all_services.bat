@@ -8,8 +8,8 @@ REM ============================================================
 set "ROOT=%~dp0"
 
 REM --- Default venv paths (edit if you want) ---
-set "DEFAULT_VENV_ACTIVATE=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\activate.bat"
-set "DEFAULT_VENV_PYTHON=C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
+set "DEFAULT_VENV_ACTIVATE=D:\DjangoProject\Test-django\myenv\Scripts\activate.bat"
+set "DEFAULT_VENV_PYTHON=D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
 
 REM --- Service dirs ---
 set "NGINX_DIR=D:\DjangoProject\MasterAI-Microservice\nginx"
@@ -94,7 +94,7 @@ if not exist "%VENV_PYTHON%" (
   echo         %VENV_PYTHON%
   echo.
   echo Provide python.exe directly, e.g.:
-  echo   run_all_services.bat "C:\DiskD\AndroidBackend\MasterAI-Microservice\venv\Scripts\python.exe"
+  echo   run_all_services.bat "D:\DjangoProject\Test-django\myenv\Scripts\python.exe"
   exit /b 1
 )
 
@@ -110,6 +110,7 @@ echo   Nginx Gateway : Port 8000
 echo   User Service  : %USER_HOST%:%USER_PORT%
 echo   Post Service  : %POST_HOST%:%POST_PORT%
 echo   Ai Service    : %AI_HOST%:%AI_PORT%
+echo   Noti Service    : %NOTI_HOST%:%NOTI_POST%
 echo.
 
 echo Starting Services with NGINX...

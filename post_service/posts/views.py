@@ -333,3 +333,30 @@ def get_user_posts(request, user_id):
 
     # 5. Trả về response kèm theo thông tin phân trang (next, previous, count)
     return paginator.get_paginated_response(serializer.data)
+
+
+@api_view(['GET'])
+def get_user_liked_posts(request, user_id):
+    """
+    Lấy danh sách bài viết mà một user đã thích, có phân trang.
+    Sắp xếp theo thời gian like mới nhất.
+    """
+    # 1. Truy vấn dữ liệu: Lọc các bài post có chứa Like của user_id này
+    # Dùng 'likes__user_id' để truy xuất ngược từ Post sang bảng Like
+    posts = Post.objects.prefetch_related('media').filter(
+        likes__user_id=user_id,
+        is_deleted=False
+    ).order_by('-likes__created_at') # Sắp xếp theo thời gian thả tim mới nhất
+
+    # 2. Khởi tạo bộ phân trang
+    paginator = PageNumberPagination()
+    paginator.page_size = 10  # Số lượng bài viết trên 1 trang
+
+    # 3. Áp dụng phân trang vào queryset
+    paginated_posts = paginator.paginate_queryset(posts, request)
+
+    # 4. Serialize dữ liệu
+    serializer = PostSerializer(paginated_posts, many=True)
+
+    # 5. Trả về response kèm theo thông tin phân trang
+    return paginator.get_paginated_response(serializer.data)

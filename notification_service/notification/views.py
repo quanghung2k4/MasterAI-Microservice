@@ -9,7 +9,7 @@ from .models import Notification
 from .serializers import NotificationSerializer
 
 
-# 🔥 CREATE + REALTIME
+# CREATE + REALTIME
 @api_view(['POST'])
 def create_notification(request):
     serializer = NotificationSerializer(data=request.data)
@@ -17,7 +17,7 @@ def create_notification(request):
     if serializer.is_valid():
         notification = serializer.save()
 
-        # 🔥 gửi realtime
+        # gửi realtime
         channel_layer = get_channel_layer()
 
         async_to_sync(channel_layer.group_send)(
@@ -45,7 +45,7 @@ def get_notifications(request):
     return Response(NotificationSerializer(data, many=True).data)
 
 
-# ✅ MARK AS READ
+# MARK AS READ
 @api_view(['PUT', 'PATCH'])
 def mark_as_read(request, notification_id):
     try:

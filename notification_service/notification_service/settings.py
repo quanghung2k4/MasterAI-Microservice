@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-br+3o632x)m)+0rlw$6(@)(!p2+3i=mt93)a=ltqdszlfm)uh1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -81,7 +81,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'notification_db',
         'USER': 'postgres',
-        'PASSWORD': '123456',
+        'PASSWORD': 'Hung@2k4',
         'HOST': 'localhost',
         'PORT': '5432',
     }
