@@ -1,6 +1,7 @@
 # modules/post/presentation/serializers.py
 
 from rest_framework import serializers
+from twisted.test import obj
 from .models import (
     Post, Media, Like, Comment
 )
@@ -32,9 +33,8 @@ class CommentSerializer(serializers.ModelSerializer):
         ]
 
     def get_replies(self, obj):
-        replies = obj.replies.all()
+        replies = getattr(obj, 'replies', [])
         return CommentSerializer(replies, many=True).data
-
 
 # =========================
 # POST

@@ -10,6 +10,9 @@ from .models import (
     Post, Like, Comment, Media
 )
 from .serializers import PostSerializer, CommentSerializer, MediaSerializer
+from django.core.cache import cache
+from django.db.models import F
+import cloudinary.uploader
 
 # Notification Service URL
 NOTIFICATION_SERVICE_URL = "http://localhost:3004/api/notifications"
@@ -20,31 +23,53 @@ NOTIFICATION_SERVICE_URL = "http://localhost:3004/api/notifications"
 # =========================
 @api_view(['POST'])
 def create_post(request):
-    """
-    Create a new post with optional multiple media files (images/voices)
-    
-    Request format (JSON):
-    {
-        "user_id": "uuid",
-        "content": "text content",
-        "visibility": "public|private|friends",
-        "media": [
-            {
-                "url": "https://...",
-                "media_type": "image|voice",
-                "source": "upload|ai"
-            }
-        ]
-    }
-    """
+    cache.delete("feed:global")
+
     data = request.data.dict() if hasattr(request.data, 'dict') else request.data
-    
+
     serializer = PostSerializer(data=data)
 
     if serializer.is_valid():
         post = serializer.save()
-        
-        # 🔥 Send notification when post is created
+
+        # =========================
+        # 🔥 UPLOAD MEDIA TO CLOUDINARY
+        # =========================
+        files = request.FILES.getlist('files')
+
+        for index, file in enumerate(files):
+            try:
+                import cloudinary.uploader
+
+                result = cloudinary.uploader.upload(
+                    file,
+                    resource_type="auto"  # 🔥 hỗ trợ image + audio
+                )
+
+                # detect loại media
+                resource_type = result.get("resource_type", "")
+
+                if resource_type == "image":
+                    media_type = "image"
+                elif resource_type in ["video", "raw"]:
+                    media_type = "voice"
+                else:
+                    media_type = "image"
+
+                Media.objects.create(
+                    post=post,
+                    url=result.get("secure_url"),
+                    media_type=media_type,
+                    source="upload",
+                    order=index
+                )
+
+            except Exception as e:
+                print("❌ Cloudinary upload error:", e)
+
+        # =========================
+        # 🔔 SEND NOTIFICATION
+        # =========================
         try:
             notification_data = {
                 "recipient_id": str(post.user_id),
@@ -57,83 +82,73 @@ def create_post(request):
                     "action": "post_created"
                 }
             }
-            
-            print(f"🔔 Sending notification to: {NOTIFICATION_SERVICE_URL}/create/")
-            print(f"📦 Notification data: {notification_data}")
-            
+
             response = requests.post(
                 f"{NOTIFICATION_SERVICE_URL}/create/",
                 json=notification_data,
                 timeout=5
             )
-            
-            if response.status_code == 201:
-                print(f"✅ Notification sent successfully!")
-            else:
-                print(f"❌ Notification failed with status {response.status_code}")
-                print(f"📄 Response: {response.text}")
-                
+
         except requests.exceptions.RequestException as e:
-            # Log error but don't fail the request
             print(f"❌ Notification error: {e}")
-        
+
         return Response(PostSerializer(post).data, status=201)
 
     return Response(serializer.errors, status=400)
-
 
 # =========================
 # ✏️ UPDATE POST
 # =========================
 @api_view(['PUT', 'PATCH'])
 def update_post(request, post_id):
-    """
-    Update an existing post (content, visibility, media)
-    
-    Request format (JSON):
-    {
-        "content": "updated text",
-        "visibility": "public|private|friends",
-        "media": [
-            {
-                "url": "https://...",
-                "media_type": "image|voice",
-                "source": "upload|ai"
-            }
-        ]
-    }
-    """
+    cache.delete("feed:global")
+    cache.delete(f"post:{post_id}")
+
     try:
         post = Post.objects.get(id=post_id)
     except Post.DoesNotExist:
         return Response({'error': 'Post not found'}, status=404)
 
-    data = request.data.dict() if hasattr(request.data, 'dict') else request.data
-    
-    # Update post fields
-    if 'content' in data:
-        post.content = data['content']
-    
-    if 'visibility' in data:
-        post.visibility = data['visibility']
-    
+    # 1. Cập nhật Content và Visibility
+    post.content = request.data.get('content', post.content)
+    post.visibility = request.data.get('visibility', post.visibility)
     post.save()
 
-    # Handle media updates (delete old, add new)
-    if 'media' in data:
-        # Delete existing media
-        post.media.all().delete()
-        
-        # Create new media
-        media_data = data['media']
-        for index, m in enumerate(media_data):
-            Media.objects.create(
-                post=post,
-                url=m.get('url'),
-                media_type=m.get('media_type'),
-                source=m.get('source', 'upload'),
-                order=index
-            )
+    # 2. Xử lý GIỮ LẠI ảnh cũ
+    # Android sẽ gửi danh sách các URL ảnh cũ vẫn còn trên giao diện qua 'kept_media'
+    kept_media_urls = request.data.getlist('kept_media')
+
+    # Lấy tất cả media hiện tại của post
+    current_media = post.media.all()
+
+    for m in current_media:
+        if m.url not in kept_media_urls:
+            # Nếu URL của ảnh hiện tại không nằm trong danh sách giữ lại -> Xóa
+            # Tùy chọn: Xóa file vật lý trên Cloudinary tại đây nếu muốn
+            m.delete()
+
+    # 3. Xử lý THÊM ảnh mới từ máy (Multipart files)
+    files = request.FILES.getlist('files')
+    if files:
+        import cloudinary.uploader
+        # Tính toán thứ tự tiếp theo (order) dựa trên số lượng ảnh đã giữ lại
+        current_count = post.media.count()
+
+        for index, file in enumerate(files):
+            try:
+                result = cloudinary.uploader.upload(file, resource_type="auto")
+                resource_type = result.get("resource_type", "")
+                media_type = "voice" if resource_type in ["video", "raw"] else "image"
+
+                Media.objects.create(
+                    post=post,
+                    url=result.get("secure_url"),
+                    media_type=media_type,
+                    source="upload",
+                    order=current_count + index # Đảm bảo thứ tự nối tiếp
+                )
+            except Exception as e:
+                print(f"❌ Cloudinary upload error: {e}")
 
     return Response(PostSerializer(post).data, status=200)
 
@@ -151,17 +166,32 @@ def get_user_post_count(request, user_id):
 # =========================
 @api_view(['GET'])
 def get_feed(request):
-    posts = Post.objects.filter(is_deleted=False).order_by('-created_at')[:20]
-    serializer = PostSerializer(posts, many=True)
-    return Response(serializer.data)
+    cache_key = "feed:global"
 
+    data = cache.get(cache_key)
+    if data:
+        return Response(data)
+
+    posts = Post.objects.filter(
+        is_deleted=False
+    ).order_by('-created_at')[:20]
+
+    serializer = PostSerializer(posts, many=True)
+
+    cache.set(cache_key, serializer.data, timeout=60)
+
+    return Response(serializer.data)
 
 # =========================
 # ❤️ LIKE / UNLIKE
 # =========================
 @api_view(['POST'])
 def toggle_like(request, post_id):
+    cache.delete("feed:global")
+    cache.delete(f"post:{post_id}")
     user_id = request.data.get('user_id')
+    sender_name = request.data.get('username', 'Người dùng') 
+    sender_avatar = request.data.get('avatar', '')
 
     try:
         post = Post.objects.get(id=post_id)
@@ -175,19 +205,25 @@ def toggle_like(request, post_id):
 
     if not created:
         like.delete()
-        post.like_count -= 1
-        post.save()
+        Post.objects.filter(id=post_id).update(
+            like_count=F('like_count') + 1
+        )
         return Response({'message': 'unliked'})
 
-    post.like_count += 1
-    post.save()
+    Post.objects.filter(id=post_id).update(
+        like_count=F('like_count') + 1
+    )
 
     # 🔥 Send notification when someone likes a post
     if str(post.user_id) != str(user_id):  # Don't notify self-likes
         try:
             notification_data = {
                 "recipient_id": str(post.user_id),
-                "sender_id": str(user_id),
+                "sender": {
+                    "id": str(user_id),
+                    "username": sender_name,
+                    "avatar": sender_avatar
+                },
                 "type": "like",
                 "title": "Someone liked your post",
                 "message": f"A user liked your post: '{post.content[:50]}...'",
@@ -225,7 +261,11 @@ def toggle_like(request, post_id):
 # =========================
 @api_view(['POST'])
 def add_comment(request, post_id):
+    cache.delete(f"comments:{post_id}")
+    cache.delete("feed:global")
     user_id = request.data.get('user_id')
+    sender_name = request.data.get('username', 'Người dùng') 
+    sender_avatar = request.data.get('avatar', '')
     content = request.data.get('content')
     parent_id = request.data.get('parent')
 
@@ -241,15 +281,20 @@ def add_comment(request, post_id):
         parent_id=parent_id
     )
 
-    post.comment_count += 1
-    post.save()
+    Post.objects.filter(id=post_id).update(
+        comment_count=F('comment_count') + 1
+    )
 
     # 🔥 Send notification when someone comments on a post
     if str(post.user_id) != str(user_id):  # Don't notify self-comments
         try:
             notification_data = {
                 "recipient_id": str(post.user_id),
-                "sender_id": str(user_id),
+                "sender": {
+                    "id": str(user_id),
+                    "username": sender_name,
+                    "avatar": sender_avatar
+                },
                 "type": "comment",
                 "title": "Someone commented on your post",
                 "message": f"New comment: '{content[:70]}...'",
@@ -289,19 +334,31 @@ def add_comment(request, post_id):
 # =========================
 @api_view(['GET'])
 def get_comments(request, post_id):
+    cache_key = f"comments:{post_id}"
+
+    data = cache.get(cache_key)
+    if data:
+        return Response(data)
+
     comments = Comment.objects.filter(
         post_id=post_id,
         parent=None
-    ).order_by('-created_at')
+    ).prefetch_related('replies') \
+     .order_by('-created_at')
 
-    return Response(CommentSerializer(comments, many=True).data)
+    serializer = CommentSerializer(comments, many=True)
 
+    cache.set(cache_key, serializer.data, timeout=60)
+
+    return Response(serializer.data)
 
 # =========================
 # 🗑️ DELETE POST
 # =========================
 @api_view(['DELETE'])
 def delete_post(request, post_id):
+    cache.delete("feed:global")
+    cache.delete(f"post:{post_id}")
     try:
         post = Post.objects.get(id=post_id)
         post.is_deleted = True

@@ -12,14 +12,14 @@ from .serializers import NotificationSerializer
 # CREATE + REALTIME
 @api_view(['POST'])
 def create_notification(request):
-    serializer = NotificationSerializer(data=request.data)
+    # Thêm context={'request': request} vào đây
+    serializer = NotificationSerializer(data=request.data, context={'request': request})
 
     if serializer.is_valid():
         notification = serializer.save()
 
-        # gửi realtime
+        # Realtime gửi qua WebSocket
         channel_layer = get_channel_layer()
-
         async_to_sync(channel_layer.group_send)(
             f"user_{notification.recipient_id}",
             {
@@ -27,7 +27,6 @@ def create_notification(request):
                 "data": NotificationSerializer(notification).data
             }
         )
-
         return Response(serializer.data, status=201)
 
     return Response(serializer.errors, status=400)
