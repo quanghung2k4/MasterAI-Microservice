@@ -39,6 +39,8 @@ class Post(models.Model):
         indexes = [
             models.Index(fields=['user_id']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['is_deleted']),  # 🔥 thêm
+            models.Index(fields=['is_deleted', '-created_at']),  # 🔥 feed cực nhanh
         ]
 
     def __str__(self):
@@ -116,6 +118,7 @@ class Like(models.Model):
         indexes = [
             models.Index(fields=['user_id']),
             models.Index(fields=['post']),
+            models.Index(fields=['user_id', 'post']),  # 🔥 tối ưu liked posts
         ]
 
 
@@ -152,6 +155,7 @@ class Comment(models.Model):
         indexes = [
             models.Index(fields=['post']),
             models.Index(fields=['user_id']),
+            models.Index(fields=['post', '-created_at']),  # 🔥 load comment nhanh
         ]
 
 
@@ -196,3 +200,13 @@ class Share(models.Model):
 
     class Meta:
         db_table = 'shares'
+
+class UserInteraction(models.Model):
+    user_id = models.UUIDField()
+    post_id = models.UUIDField()
+    # Định nghĩa trọng số: Like = 5.0, Comment = 4.0, View = 1.0
+    score = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user_id', 'post_id') # Một user - một bài viết chỉ có 1 dòng điểm

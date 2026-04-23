@@ -1,6 +1,6 @@
 @echo off
 echo Stopping Nginx...
-cd /d "D:\DjangoProject\MasterAI-Microservice\nginx"
+cd /d "c:\DiskD\AndroidBE\MasterAI-Microservice\nginx"
 nginx -s quit
 
 echo.
