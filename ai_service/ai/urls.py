@@ -6,6 +6,8 @@ urlpatterns = [
     path('generate-image/', views.generate_image_api, name='generate_image'),
     path('enhance-prompt/', views.enhance_image_prompt, name='enhance-prompt'),
     path('add-asset/', views.add_asset_api, name='add_asset'),
+    # âm nhạc
+    path('generate-audio/', views.generate_audio_api, name='generate_audio'),
 
     # --- Nhóm 2: Các tính năng Lấy dữ liệu (GET) ---
     path('generations/', views.get_generations_api, name='get_generations'),

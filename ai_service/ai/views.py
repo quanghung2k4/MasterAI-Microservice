@@ -19,7 +19,7 @@ import requests
 import cloudinary
 import cloudinary.uploader
 
-# Cấu hình Cloudinary (Khuyến nghị để trong settings.py, nhưng khởi tạo ở đây để bạn dễ hình dung)
+# Cấu hình Cloudinary
 cloudinary.config( 
   cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'), 
   api_key = os.getenv('CLOUDINARY_API_KEY'), 
@@ -27,7 +27,7 @@ cloudinary.config(
   secure = True
 )
 
-# Tốt nhất bạn nên lưu API Key trong biến môi trường (Environment Variables)
+# api_key_gemini
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
 
 # Notification Service URL
@@ -198,7 +198,7 @@ def enhance_image_prompt(request):
 
             instructions = (
                 "Bạn là một chuyên gia Prompt Engineering cho các AI tạo ảnh như Midjourney, DALL-E. "
-                "Hãy nâng cấp ý tưởng ban đầu của người dùng thành một prompt bằng Tiếng Việt vừa đủ để prompt ảnh, không quá 40 từ"
+                "Hãy nâng cấp ý tưởng ban đầu của người dùng thành một prompt bằng ngôn ngữ hiện tại vừa đủ để prompt ảnh, không quá 40 từ"
                 "Bổ sung các yếu tố: phong cách nghệ thuật, ánh sáng, góc máy, màu sắc"
                 "Chỉ trả về nội dung prompt đã được nâng cấp, tuyệt đối không giải thích thêm.\n\n"
                 f"Ý tưởng ban đầu: '{user_prompt}'"
@@ -357,3 +357,106 @@ def add_asset_api(request):
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+@csrf_exempt
+def generate_audio_api(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Chỉ chấp nhận phương thức POST'}, status=405)
+
+    # 1. Lấy dữ liệu từ Request
+    user_id = request.POST.get('user_id')
+    prompt = request.POST.get('prompt', '')
+
+    if not prompt:
+        return JsonResponse({'error': 'Thiếu tham số bắt buộc: prompt'}, status=400)
+    if not user_id:
+        return JsonResponse({'error': 'Thiếu tham số bắt buộc: user_id'}, status=400)
+
+    # # Test: Trả về kết quả
+    return JsonResponse({
+        'success': True,
+        'message': 'Sinh âm thanh thành công',
+        'generation_id': "test-e9c66e44-9de4-401f-b1e8-187a683393fd",
+        'media_url': "https://res.cloudinary.com/dldcklb9x/video/upload/v1776847515/audio/seolqzh3s08lr8cydgoc.mp3",
+        'type': 'audio'
+    })
+    try:
+        # 2. Khởi tạo Client
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        
+        #API dựa trên cấu trúc của Google GenAI.
+ 
+        response = client.models.generate_content(
+            model='lyria-3-clip-preview', 
+            contents=[prompt],
+        )
+
+        audio_data = None
+        
+        # Trích xuất bytes âm thanh từ response (Tương tự như cách lấy ảnh)
+        if response.candidates and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                # Tùy thuộc vào cách Google đóng gói, có thể là inline_data hoặc uri
+                if part.inline_data:
+                    audio_data = part.inline_data.data
+                    break
+
+        if not audio_data:
+            return JsonResponse({'error': 'Không có dữ liệu âm thanh nào được sinh ra từ API'}, status=500)
+
+        # 3. Đẩy file âm thanh lên Cloudinary
+        file_stream = io.BytesIO(audio_data)
+        upload_result = cloudinary.uploader.upload(
+            file_stream, 
+            folder="audio",             # Lưu vào thư mục audio cho gọn
+            resource_type="video"       # Cloudinary xử lý Audio dưới dạng Video
+        )
+        
+        media_url = upload_result.get("secure_url")
+
+        # 4. Lưu lịch sử vào Database
+        new_gen = AIGeneration.objects.create(
+            user_id=user_id,
+            generation_type='audio', # Gán cứng type là audio
+            prompt=prompt,
+            media_url=media_url,
+            # Audio không cần aspect_ratio và resolution, để trống hoặc null
+            aspect_ratio=None,
+            resolution_config=None 
+        )
+
+        # 5. Gửi Notification (Tái sử dụng logic cũ của bạn)
+        try:
+            notification_data = {
+                "recipient_id": str(user_id),
+                "sender_id": str(user_id),
+                "type": "ai",
+                "title": "Bản nhạc AI của bạn đã hoàn thành",
+                "message": f"AI đã tạo nhạc từ prompt: '{prompt[:60]}...'",
+                "data": {
+                    "generation_id": str(new_gen.id),
+                    "generation_type": "audio",
+                    "media_url": media_url,
+                    "action": "ai_generation",
+                    "prompt": prompt[:100]
+                }
+            }
+            # requests.post(
+            #     f"{NOTIFICATION_SERVICE_URL}/create/",
+            #     json=notification_data,
+            #     timeout=5
+            # )
+        except requests.exceptions.RequestException as e:
+            print(f"Notification error: {e}")
+
+        # 6. Trả về kết quả
+        return JsonResponse({
+            'success': True,
+            'message': 'Sinh âm thanh thành công',
+            'generation_id': new_gen.id,
+            'media_url': media_url,
+            'type': 'audio'
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': f'Lỗi từ hệ thống AI hoặc Cloudinary: {str(e)}'}, status=500)
