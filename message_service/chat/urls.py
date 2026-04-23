@@ -10,4 +10,5 @@ urlpatterns = [
     
     # Lấy lịch sử chat giữa 2 người
     path('history/<uuid:my_id>/<uuid:target_id>/', views.get_chat_history),
+    path('upload-image/', views.upload_chat_image),
 ]

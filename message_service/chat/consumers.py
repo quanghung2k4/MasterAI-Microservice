@@ -100,7 +100,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             image_url=image_url,
             message_type=msg_type
         )
-    # 🔥 Hàm xử lý gửi trạng thái về Android
+    # Hàm xử lý gửi trạng thái về Android
     async def presence_update(self, event):
         await self.send(text_data=json.dumps({
             'type': 'presence',

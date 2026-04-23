@@ -2,11 +2,27 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
+import os
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
 import httpx # Dùng để gọi sang User Service lấy Name/Avatar
 from .models import Message, UserStatus
 
 # Đổi thành URL của User Service
 USER_SERVICE_URL = "http://127.0.0.1:3001/api/users" 
+
+# Import thư viện Cloudinary
+import cloudinary
+import cloudinary.uploader
+
+# Cấu hình Cloudinary
+cloudinary.config( 
+  cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'), 
+  api_key = os.getenv('CLOUDINARY_API_KEY'), 
+  api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+  secure = True
+)
 
 @api_view(['GET'])
 def get_inbox(request, user_id):
@@ -107,7 +123,7 @@ def get_chat_history(request, my_id, target_id):
 @api_view(['POST'])
 def update_online_status(request):
     """
-    API: Cập nhật trạng thái online/offline (Android gọi ở onResume/onPause)
+    API: Cập nhật trạng thái online/offline
     """
     user_id = request.data.get('user_id')
     is_online = request.data.get('is_online', False)
@@ -121,3 +137,34 @@ def update_online_status(request):
     )
 
     return Response({"message": "Đã cập nhật trạng thái"}, status=status.HTTP_200_OK)
+
+@csrf_exempt
+def upload_chat_image(request):
+    """API nhận ảnh từ Android và upload lên Cloudinary"""
+    if request.method == 'POST':
+        # 'image'
+        file_to_upload = request.FILES.get('image')
+        
+        if not file_to_upload:
+            return JsonResponse({'error': 'Không nhận được file ảnh'}, status=400)
+            
+        try:
+            # 1. Upload lên Cloudinary
+            # folder="chat_app" giúp gom nhóm ảnh trên Cloud
+            upload_result = cloudinary.uploader.upload(
+                file_to_upload, 
+                folder="chat_app/messages"
+            )
+            
+            # 2. Lấy URL trả v
+            image_url = upload_result.get('secure_url')
+            
+            return JsonResponse({
+                'message': 'Upload thành công',
+                'image_url': image_url
+            }, status=200)
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+            
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
