@@ -7,12 +7,14 @@ import requests
 from rest_framework.pagination import PageNumberPagination
 
 from .models import (
-    Post, Like, Comment, Media
+    Post, Like, Comment, Media, UserInteraction
 )
 from .serializers import PostSerializer, CommentSerializer, MediaSerializer
 from django.core.cache import cache
 from django.db.models import F
 import cloudinary.uploader
+from django.shortcuts import get_object_or_404
+from django.db import transaction
 
 # Notification Service URL
 NOTIFICATION_SERVICE_URL = "http://localhost:3004/api/notifications"
@@ -187,11 +189,7 @@ def get_feed(request):
 # =========================
 @api_view(['POST'])
 def toggle_like(request, post_id):
-    cache.delete("feed:global")
-    cache.delete(f"post:{post_id}")
     user_id = request.data.get('user_id')
-    sender_name = request.data.get('username', 'Người dùng') 
-    sender_avatar = request.data.get('avatar', '')
 
     try:
         post = Post.objects.get(id=post_id)
@@ -204,26 +202,29 @@ def toggle_like(request, post_id):
     )
 
     if not created:
+        # ❌ UNLIKE
         like.delete()
-        Post.objects.filter(id=post_id).update(
-            like_count=F('like_count') + 1
-        )
+        post.like_count -= 1
+        post.save()
+
+        # 🔥 GHI NHẬN INTERACTION
+        record_interaction(user_id, post_id, -5.0)
+
         return Response({'message': 'unliked'})
 
-    Post.objects.filter(id=post_id).update(
-        like_count=F('like_count') + 1
-    )
+    # ✅ LIKE
+    post.like_count += 1
+    post.save()
 
-    # 🔥 Send notification when someone likes a post
-    if str(post.user_id) != str(user_id):  # Don't notify self-likes
+    # 🔥 GHI NHẬN INTERACTION
+    record_interaction(user_id, post_id, 5.0)
+
+    # 🔔 Notification (giữ nguyên)
+    if str(post.user_id) != str(user_id):
         try:
             notification_data = {
                 "recipient_id": str(post.user_id),
-                "sender": {
-                    "id": str(user_id),
-                    "username": sender_name,
-                    "avatar": sender_avatar
-                },
+                "sender_id": str(user_id),
                 "type": "like",
                 "title": "Someone liked your post",
                 "message": f"A user liked your post: '{post.content[:50]}...'",
@@ -234,28 +235,17 @@ def toggle_like(request, post_id):
                     "post_content": post.content[:100]
                 }
             }
-            
-            print(f"🔔 Sending notification to: {NOTIFICATION_SERVICE_URL}/create/")
-            print(f"📦 Notification data: {notification_data}")
-            
-            response = requests.post(
+
+            requests.post(
                 f"{NOTIFICATION_SERVICE_URL}/create/",
                 json=notification_data,
                 timeout=5
             )
-            
-            if response.status_code == 201:
-                print(f"✅ Notification sent successfully!")
-            else:
-                print(f"❌ Notification failed with status {response.status_code}")
-                print(f"📄 Response: {response.text}")
-                
+
         except requests.exceptions.RequestException as e:
             print(f"❌ Notification error: {e}")
 
     return Response({'message': 'liked'})
-
-
 # =========================
 # 💬 ADD COMMENT
 # =========================
@@ -269,21 +259,14 @@ def add_comment(request, post_id):
     content = request.data.get('content')
     parent_id = request.data.get('parent')
 
-    try:
-        post = Post.objects.get(id=post_id)
-    except Post.DoesNotExist:
-        return Response({'error': 'Post not found'}, status=404)
-
-    comment = Comment.objects.create(
-        user_id=user_id,
-        post=post,
-        content=content,
-        parent_id=parent_id
-    )
-
-    Post.objects.filter(id=post_id).update(
-        comment_count=F('comment_count') + 1
-    )
+    post = get_object_or_404(Post, id=post_id)
+    comment = Comment.objects.create(user_id=user_id, post=post, content=content)
+    
+    post.comment_count += 1
+    post.save()
+    
+    # AI: Ghi nhận tương tác
+    record_interaction(user_id, post_id, 4.0)
 
     # 🔥 Send notification when someone comments on a post
     if str(post.user_id) != str(user_id):  # Don't notify self-comments
@@ -326,7 +309,8 @@ def add_comment(request, post_id):
         except requests.exceptions.RequestException as e:
             print(f"❌ Notification error: {e}")
 
-    return Response(CommentSerializer(comment).data, status=201)
+    serializer = CommentSerializer(comment)
+    return Response(serializer.data, status=201)
 
 
 # =========================
@@ -417,3 +401,42 @@ def get_user_liked_posts(request, user_id):
 
     # 5. Trả về response kèm theo thông tin phân trang
     return paginator.get_paginated_response(serializer.data)
+
+from .ai.recommender import HybridRecommender
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Post
+from .serializers import PostSerializer
+from .ai.recommender import HybridRecommender
+
+@api_view(['GET'])
+def get_recommended_feed(request):
+    user_id = request.query_params.get('user_id')
+    if not user_id:
+        return Response({"error": "user_id is required"}, status=400)
+
+    # Lấy 100 bài viết mới nhất để làm "nguyên liệu"
+    posts_pool = Post.objects.filter(is_deleted=False).order_by('-created_at')[:100]
+
+    recommender = HybridRecommender()
+    smart_posts = recommender.recommend(user_id, posts_pool)
+
+    serializer = PostSerializer(smart_posts, many=True)
+    return Response(serializer.data)
+
+# Ví dụ logic chèn vào hàm Like
+def record_interaction(user_id, post_id, action_score):
+    interaction, created = UserInteraction.objects.get_or_create(
+        user_id=user_id,
+        post_id=post_id,
+        defaults={'score': 0}
+    )
+
+    if created:
+        interaction.score = action_score
+    else:
+        interaction.score += action_score
+
+    interaction.score = max(interaction.score, -100)
+    interaction.save()

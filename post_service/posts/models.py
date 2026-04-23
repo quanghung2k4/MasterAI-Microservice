@@ -200,3 +200,13 @@ class Share(models.Model):
 
     class Meta:
         db_table = 'shares'
+
+class UserInteraction(models.Model):
+    user_id = models.UUIDField()
+    post_id = models.UUIDField()
+    # Định nghĩa trọng số: Like = 5.0, Comment = 4.0, View = 1.0
+    score = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user_id', 'post_id') # Một user - một bài viết chỉ có 1 dòng điểm

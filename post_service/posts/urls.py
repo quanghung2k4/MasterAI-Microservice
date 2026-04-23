@@ -9,7 +9,8 @@ from .views import (
     delete_post,
     get_user_post_count,
     get_user_posts,
-    get_user_liked_posts
+    get_user_liked_posts,
+    get_recommended_feed
 )
 
 urlpatterns = [
@@ -21,6 +22,7 @@ urlpatterns = [
     path('<uuid:post_id>/update/', update_post, name='update_post'),
     path('<uuid:post_id>/', delete_post, name='delete_post'),
     path('count/<uuid:user_id>/', get_user_post_count, name='post-count'),
+    path('recommend/', get_recommended_feed, name='recommend_feed'),
     
     # lấy bài viết
     path('user/<uuid:user_id>/', get_user_posts, name='get_user_posts'),
