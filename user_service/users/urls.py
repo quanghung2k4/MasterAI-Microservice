@@ -9,7 +9,8 @@ from .views import (
     logout,
     follow_user,
     unfollow_user,
-    toggle_follow
+    toggle_follow,
+    search_users
 )
 
 urlpatterns = [
@@ -18,11 +19,12 @@ urlpatterns = [
     path('login/', login),
     path('logout/', logout),
 
-    # 👥 FOLLOW/UNFOLLOW
+    # FOLLOW/UNFOLLOW
     path('follow/', follow_user),
     path('unfollow/', unfollow_user),
 
-    # 👤 USERS
+    # search USERS
+    path('search/', search_users, name='search_users'), # <-- API tìm kiếm của bạn
     #  USERS
     path('', get_all_users),
     path('<uuid:user_id>/', get_user_by_id),

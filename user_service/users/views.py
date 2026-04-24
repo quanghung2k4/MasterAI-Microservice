@@ -8,6 +8,9 @@ from django.contrib.auth.hashers import make_password, check_password
 from .models import User,Follow
 import requests
 from .serializers import UserSerializer
+from django.http import JsonResponse
+from django.db.models import Q
+from .models import User
 
 # Giả sử POST_SERVICE đang chạy ở cổng 3002
 POST_SERVICE_URL = "http://localhost:3002/api/posts/count/"
@@ -275,3 +278,34 @@ def unfollow_user(request):
         return Response({"message": "Unfollowed"}, status=200)
     except Follow.DoesNotExist:
         return Response({"error": "Not following this user"}, status=404)
+    
+def search_users(request):
+    if request.method == 'GET':
+        # Lấy từ khóa tìm kiếm 'q' từ URL (VD: ?q=hung)
+        query = request.GET.get('q', '').strip()
+        
+        if query:
+            # Tìm kiếm không phân biệt hoa thường (icontains)
+            # Tìm theo username hoặc email
+            users = User.objects.filter(
+                Q(username__icontains=query) | Q(email__icontains=query)
+            )
+        else:
+            # Nếu không truyền 'q' hoặc 'q' rỗng, có thể trả về mảng rỗng hoặc tất cả
+            users = User.objects.none() 
+
+        # Format dữ liệu trả về cho Android
+        user_list = []
+        for user in users:
+            user_list.append({
+                "id": str(user.id), # Ép kiểu UUID sang chuỗi
+                "username": user.username,
+                "email": user.email,
+                "avatar_url": user.avatar_url,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            })
+
+        # safe=False cho phép trả về một mảng JSON (List) thay vì một Object
+        return JsonResponse(user_list, safe=False, status=200)
+    
+    return JsonResponse({"error": "Method not allowed"}, status=405)

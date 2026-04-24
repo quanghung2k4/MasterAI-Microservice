@@ -77,8 +77,8 @@ def create_post(request):
                 "recipient_id": str(post.user_id),
                 "sender_id": str(post.user_id),
                 "type": "system",
-                "title": "Your post was created successfully",
-                "message": f"Posted: {post.content[:100]}",
+                "title": "Bài viết của bạn đã được tải lên +\n",
+                "message": f"{post.content[:100]}",
                 "data": {
                     "post_id": str(post.id),
                     "action": "post_created"
@@ -226,8 +226,8 @@ def toggle_like(request, post_id):
                 "recipient_id": str(post.user_id),
                 "sender_id": str(user_id),
                 "type": "like",
-                "title": "Someone liked your post",
-                "message": f"A user liked your post: '{post.content[:50]}...'",
+                "title": "thích bài viết của bạn",
+                "message": f"'{post.content[:50]}...'",
                 "data": {
                     "post_id": str(post_id),
                     "liker_id": str(user_id),
@@ -279,8 +279,8 @@ def add_comment(request, post_id):
                     "avatar": sender_avatar
                 },
                 "type": "comment",
-                "title": "Someone commented on your post",
-                "message": f"New comment: '{content[:70]}...'",
+                "title": "đã bình luận bài viết của bạn",
+                "message": f"'{content[:70]}...'",
                 "data": {
                     "post_id": str(post_id),
                     "comment_id": str(comment.id),
@@ -425,7 +425,7 @@ def get_recommended_feed(request):
     serializer = PostSerializer(smart_posts, many=True)
     return Response(serializer.data)
 
-# Ví dụ logic chèn vào hàm Like
+# chèn vào hàm Like
 def record_interaction(user_id, post_id, action_score):
     interaction, created = UserInteraction.objects.get_or_create(
         user_id=user_id,

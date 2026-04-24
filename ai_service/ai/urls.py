@@ -11,5 +11,6 @@ urlpatterns = [
 
     # --- Nhóm 2: Các tính năng Lấy dữ liệu (GET) ---
     path('generations/', views.get_generations_api, name='get_generations'),
+    path('generations/search/', views.search_generations_api, name='search_generations'),
     path('assets/', views.get_assets_api, name='get_assets'),
 ]

@@ -51,7 +51,7 @@ def generate_image_api(request):
     new_gen = AIGeneration.objects.create(
         user_id=user_id, # Đã thêm
         generation_type=gen_type,
-        prompt="prompt", 
+        prompt=prompt, 
         media_url="https://res.cloudinary.com/dldcklb9x/image/upload/v1776360281/image/dz2dfsy1arhy7ny45ccf.png",
         aspect_ratio=aspect_ratio,
         resolution_config=resolution
@@ -460,3 +460,57 @@ def generate_audio_api(request):
 
     except Exception as e:
         return JsonResponse({'error': f'Lỗi từ hệ thống AI hoặc Cloudinary: {str(e)}'}, status=500)
+from django.http import JsonResponse
+from .models import AIGeneration
+
+def search_generations_api(request):
+    if request.method == 'GET':
+        # Lấy các tham số từ URL
+        user_id = request.GET.get('user_id')
+        gen_type = request.GET.get('type')
+        search_query = request.GET.get('search')
+        
+        # Các tham số lọc và sắp xếp mới
+        sort_order = request.GET.get('sort', 'newest') # Mặc định là mới nhất
+        aspect_ratio = request.GET.get('aspect_ratio')
+        resolution_config = request.GET.get('resolution_config')
+
+        # Khởi tạo queryset cơ bản
+        queryset = AIGeneration.objects.all()
+
+        # 1. Lọc theo User và Type
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        if gen_type:
+            queryset = queryset.filter(generation_type=gen_type)
+            
+        # 2. Tìm kiếm theo Prompt
+        if search_query:
+            queryset = queryset.filter(prompt__icontains=search_query)
+
+        # 3. Lọc theo tỉ lệ và độ phân giải
+        if aspect_ratio:
+            queryset = queryset.filter(aspect_ratio=aspect_ratio)
+        if resolution_config:
+            queryset = queryset.filter(resolution_config=resolution_config)
+
+        # 4. Sắp xếp (Mới nhất / Cũ nhất)
+        if sort_order == 'oldest':
+            queryset = queryset.order_by('created_at') # Cũ nhất lên đầu
+        else:
+            queryset = queryset.order_by('-created_at') # Mới nhất lên đầu (Mặc định)
+
+        # Trả về kết quả
+        data = list(queryset.values(
+            'id', 'user_id', 'generation_type', 'prompt', 'media_url', 
+            'aspect_ratio', 'resolution_config', 'created_at'
+        ))
+        
+        # Lưu ý: Nếu có lỗi serialize UUID, thêm encoder=DjangoJSONEncoder vào JsonResponse
+        return JsonResponse({
+            'status': 'success',
+            'count': len(data),
+            'data': data
+        }, status=200)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

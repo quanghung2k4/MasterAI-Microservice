@@ -75,8 +75,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                'type': 'chat_message',
+                'type': 'chat_message',       # SỬA Ở ĐÂY: Trỏ đúng tên hàm
+                'message_type': msg_type,
                 'message': message,
+                'image_url':image_url,
                 'sender_id': self.my_id,
                 'timestamp': now_utc
             }
@@ -87,6 +89,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'chat',
             'message': event['message'],
+            'message_type': event.get('message_type', 0), # THÊM DÒNG NÀY
+            'image_url': event.get('image_url'),          # THÊM DÒNG NÀY
             'sender_id': event['sender_id'],
             'timestamp': event['timestamp']
         }))
